@@ -41,10 +41,15 @@ public class FallbackController {
     }
 
     /**
-     * forward 之后 request 的 path 已经变成 /__fallback，
-     * 真正被请求的原始路径存在 gateway 的 attribute 里，取它才是对调用方有用的信息。
+     * forward 之后 request 的 path 已经变成 /__fallback，真正被请求的路径由
+     * TenantContextFilter 提前写进了 X-Original-Path。attribute 里的
+     * GATEWAY_ORIGINAL_REQUEST_URL_ATTR 在 forward 场景并不可靠，只做兜底。
      */
     private String originalPath(ServerWebExchange exchange) {
+        String fromHeader = exchange.getRequest().getHeaders().getFirst("X-Original-Path");
+        if (fromHeader != null && !fromHeader.isBlank()) {
+            return fromHeader;
+        }
         List<URI> originals = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ORIGINAL_REQUEST_URL_ATTR);
         if (originals != null && !originals.isEmpty()) {
             URI last = originals.get(originals.size() - 1);

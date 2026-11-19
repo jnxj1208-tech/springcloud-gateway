@@ -25,17 +25,21 @@ public class TenantContextFilter implements GlobalFilter, Ordered {
 
     public static final String TENANT_HEADER = "X-Tenant-Id";
     public static final String TRACE_HEADER = "X-Trace-Id";
+    /** 原始请求路径：兜底路由 forward 之后 path 会被改写，靠它把真实路径带过去。 */
+    public static final String ORIGINAL_PATH_HEADER = "X-Original-Path";
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String tenantHeader = exchange.getRequest().getHeaders().getFirst(TENANT_HEADER);
         String tenantId = (tenantHeader == null || tenantHeader.isBlank()) ? "anonymous" : tenantHeader;
         String traceId = resolveTraceId(exchange);
+        String originalPath = exchange.getRequest().getPath().value();
 
         ServerHttpRequest request = exchange.getRequest().mutate()
                 .headers(headers -> {
                     headers.set(TENANT_HEADER, tenantId);
                     headers.set(TRACE_HEADER, traceId);
+                    headers.set(ORIGINAL_PATH_HEADER, originalPath);
                 })
                 .build();
 
