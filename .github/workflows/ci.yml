@@ -9,7 +9,7 @@ env:
   REGISTRY: ${{ secrets.ACR_REGISTRY }}
   NS: ${{ secrets.ACR_NAMESPACE }}
   IMAGE_GATEWAY: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/springcloud-gateway
-  IMAGE_DASHBOARD: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/sentinel-dashboard
+  # sentinel-dashboard 镜像已拆到独立仓库：jnxj1208-tech/sentinel-dashboard-image
 
 jobs:
   build:
@@ -62,27 +62,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push sentinel dashboard image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.dashboard
-          push: true
-          provenance: false
-          sbom: false
-          tags: |
-            ${{ env.IMAGE_DASHBOARD }}:1.8.9
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
       - name: Summary
         run: |
           {
-            echo "### Images pushed"
+            echo "### Image pushed"
             echo ""
             echo '```'
             echo "${IMAGE_GATEWAY}:sha-${{ steps.vars.outputs.sha7 }}"
-            echo "${IMAGE_DASHBOARD}:1.8.9"
             echo '```'
             echo ""
             echo "本地 minikube 部署："

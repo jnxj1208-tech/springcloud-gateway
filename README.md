@@ -23,10 +23,13 @@ Spring Cloud Gateway 5.0（WebFlux）+ Sentinel 的 API 网关，跑在 minikube
 
 ## 部署
 
-CI（GitHub Actions）构建两个镜像推到 ACR：
+CI（GitHub Actions）构建网关镜像推到 ACR：
 
 - `springcloud-gateway:sha-xxxxxxx`
-- `sentinel-dashboard:1.8.9`
+
+Sentinel 控制台镜像（`sentinel-dashboard:1.8.9`）已拆到独立仓库
+[`jnxj1208-tech/sentinel-dashboard-image`](https://github.com/jnxj1208-tech/sentinel-dashboard-image)，
+本仓库只通过 Helm chart 的 `dashboard.enabled` 引用于部署，不再自己构建。
 
 本地部署（CI 够不到集群）：
 
