@@ -36,9 +36,20 @@ demoServiceUri: "http://springcloud-demo:80"
 sentinelDashboardAddr: sentinel-dashboard:8858
 
 javaOpts: >-
+  -javaagent:/app/otel-javaagent.jar
   -XX:MaxRAMPercentage=75
   -Djava.security.egd=file:/dev/./urandom
   -Xlog:gc*:stdout:time,uptime,level,tags
+
+# OpenTelemetry：网关在链路最前端，接上 agent 后入口 → 网关 → 应用才是同一条 trace
+otel:
+  serviceName: springcloud-gateway
+  endpoint: http://otel-collector-opentelemetry-collector.monitoring.svc:4317
+  protocol: grpc
+  sampler: parentbased_always_on
+  resourceAttributes: service.namespace=default,deployment.environment=minikube,service.role=gateway
+  metricsExporter: none
+  logsExporter: none
 
 resources:
   requests:
