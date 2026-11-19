@@ -8,9 +8,13 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_ADDR:nacos:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
         namespace: public
       config:
         server-addr: ${NACOS_ADDR:nacos:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
         namespace: public
         file-extension: yaml
         import-check:
@@ -21,8 +25,10 @@ spring:
       server:
         webflux:
           routes:
+            # 下游服务当前未接入 Nacos（无 discovery 依赖），先用 K8s Service DNS 直连；
+            # 待服务注册到 Nacos 后改成 lb://springcloud-demo 即可走负载均衡
             - id: springcloud-demo-route
-              uri: lb://springcloud-demo
+              uri: http://springcloud-demo:8080
               predicates:
                 - Path=/api/**
               filters:

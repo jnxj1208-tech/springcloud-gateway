@@ -25,6 +25,9 @@ ingress:
 
 # Nacos 地址（集群内 Service）
 nacosAddr: nacos:8848
+# Nacos 3.x 已开启鉴权，必须带凭据
+nacosUsername: nacos
+nacosPassword: "Chw1xN&&"
 
 # Sentinel Dashboard 地址（作为客户端上报与规则拉取的对端）
 sentinelDashboardAddr: sentinel-dashboard:8858
