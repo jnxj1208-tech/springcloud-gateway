@@ -28,7 +28,7 @@ spring:
             # 下游服务当前未接入 Nacos（无 discovery 依赖），先用 K8s Service DNS 直连；
             # 待服务注册到 Nacos 后改成 lb://springcloud-demo 即可走负载均衡
             - id: springcloud-demo-route
-              uri: http://springcloud-demo:8080
+              uri: ${DEMO_SERVICE_URI:http://springcloud-demo:80}
               predicates:
                 - Path=/api/**
               filters:

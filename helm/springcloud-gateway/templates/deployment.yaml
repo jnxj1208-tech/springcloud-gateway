@@ -37,6 +37,8 @@ spec:
               value: {{ .Values.nacosUsername | quote }}
             - name: NACOS_PASSWORD
               value: {{ .Values.nacosPassword | quote }}
+            - name: DEMO_SERVICE_URI
+              value: {{ .Values.demoServiceUri | quote }}
             - name: SENTINEL_DASHBOARD
               value: {{ .Values.sentinelDashboardAddr | quote }}
             - name: POD_IP
