@@ -89,29 +89,32 @@ public class ReleaseRuleRouteDefinitionLocator implements RouteDefinitionLocator
         return variant.getService();
     }
 
-    /** 按权重分流：生成 stable / canary 两条带 Weight 谓词的路由 */
+    /** 按权重分流：生成 stable / canary 两条路由，共用 ReleaseRoute 谓词的同一随机数 */
     private void expandWeight(List<RouteDefinition> out, String key, int index, String path,
                               String stableService, String canaryService, ReleaseRules.Split split) {
-        int stableWeight = split.getStable() == null ? 100 : split.getStable();
         int canaryWeight = split.getCanary() == null ? 0 : split.getCanary();
-        String group = key + "-group";
-
-        if (stableWeight > 0) {
-            PredicateDefinition stableWeightPredicate = predicate("Weight",
-                    Map.of("group", group, "weight", String.valueOf(stableWeight)));
-            out.add(route(key + "-stable-" + index, stableService, order(RULE_ORDER),
-                    predicates(path, stableWeightPredicate)));
-        }
-        if (canaryWeight > 0 && canaryService != null) {
-            PredicateDefinition canaryWeightPredicate = predicate("Weight",
-                    Map.of("group", group, "weight", String.valueOf(canaryWeight)));
-            out.add(route(key + "-canary-" + index, canaryService, order(RULE_ORDER),
-                    predicates(path, canaryWeightPredicate)));
-        }
         if (canaryWeight > 0 && canaryService == null) {
             log.warn("规则声明了 canary 权重但未配置 canary.service，金丝雀路由被忽略: service={}", key);
+            canaryWeight = 0;
         }
-        log.info("权重分流: service={}, stable={}/{}, canary={}/{}", key, stableWeight, 100, canaryWeight, 100);
+        String group = key + "-w" + index;
+
+        PredicateDefinition stablePredicate = predicate("ReleaseRoute", Map.of(
+                "role", "stable",
+                "group", group,
+                "stableWeight", String.valueOf(100 - canaryWeight)));
+        out.add(route(key + "-stable-" + index, stableService, order(RULE_ORDER),
+                predicates(path, stablePredicate)));
+
+        if (canaryWeight > 0) {
+            PredicateDefinition canaryPredicate = predicate("ReleaseRoute", Map.of(
+                    "role", "canary",
+                    "group", group,
+                    "stableWeight", String.valueOf(100 - canaryWeight)));
+            out.add(route(key + "-canary-" + index, canaryService, order(RULE_ORDER),
+                    predicates(path, canaryPredicate)));
+        }
+        log.info("权重分流: service={}, stable={}%, canary={}%", key, 100 - canaryWeight, canaryWeight);
     }
 
     /** 按请求头定向（灰度）或按哈希分桶（A/B）：生成互斥的两条路由 */

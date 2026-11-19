@@ -36,6 +36,24 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
 
     @Override
     public Predicate<ServerWebExchange> apply(Config config) {
+        final String role = config.getRole();
+        // 权重模式：同一请求只掷一次骰子，存在 exchange attributes 里，两条路由共享
+        if (role != null && !role.isBlank()) {
+            final String group = config.getGroup() == null ? "default" : config.getGroup();
+            final int stableWeight = config.getStableWeight() == null ? 100 : config.getStableWeight();
+            final boolean canaryRole = "canary".equalsIgnoreCase(role);
+            final String attrKey = "release.bucket." + group;
+            return exchange -> {
+                Integer r = (Integer) exchange.getAttributes().get(attrKey);
+                if (r == null) {
+                    r = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) + 1; // 1..100
+                    exchange.getAttributes().put(attrKey, r);
+                }
+                boolean stableHit = r <= stableWeight;
+                return canaryRole != stableHit;
+            };
+        }
+
         final String header = config.getHeader();
         final List<String> values = parseList(config.getValues());
         final int buckets = config.getBuckets() == null ? 0 : config.getBuckets();
@@ -82,6 +100,36 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
         private Integer buckets;
         private String canaryBuckets;
         private String negate;
+        /** 权重模式：stable / canary */
+        private String role;
+        /** 权重模式：随机分组标识，同一请求共享同一个随机数 */
+        private String group;
+        /** 权重模式：stable 版本百分比（1-100） */
+        private Integer stableWeight;
+
+        public String getRole() {
+            return role;
+        }
+
+        public void setRole(String role) {
+            this.role = role;
+        }
+
+        public String getGroup() {
+            return group;
+        }
+
+        public void setGroup(String group) {
+            this.group = group;
+        }
+
+        public Integer getStableWeight() {
+            return stableWeight;
+        }
+
+        public void setStableWeight(Integer stableWeight) {
+            this.stableWeight = stableWeight;
+        }
 
         public String getHeader() {
             return header;
