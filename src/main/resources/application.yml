@@ -25,14 +25,13 @@ spring:
       server:
         webflux:
           routes:
-            # 下游服务当前未接入 Nacos（无 discovery 依赖），先用 K8s Service DNS 直连；
-            # 待服务注册到 Nacos 后改成 lb://springcloud-demo 即可走负载均衡
+            # 下游服务已注册到 Nacos，走 lb:// 由 LoadBalancer 解析实例
+            # 注意：demo 的端点本身就是 /api/hello，所以这里不能加 StripPrefix，
+            # 加了会把 /api/hello 变成 /hello 而 404
             - id: springcloud-demo-route
               uri: ${DEMO_SERVICE_URI:lb://springcloud-demo}
               predicates:
                 - Path=/api/**
-              filters:
-                - StripPrefix=1
   config:
     import:
       - optional:nacos:springcloud-gateway.yaml
