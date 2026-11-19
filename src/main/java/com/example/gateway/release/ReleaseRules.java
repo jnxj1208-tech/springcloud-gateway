@@ -145,8 +145,8 @@ public class ReleaseRules {
         private String groupBy;
         /** 分桶总数，例如 100 */
         private Integer buckets;
-        /** 命中金丝雀的桶号列表，例如 [0, 49] */
-        private List<Integer> canaryBuckets = new ArrayList<>();
+        /** 命中金丝雀的桶号，支持区间写法，例如 ["0-49"] 或 [0, 49, "60-70"] */
+        private List<String> canaryBuckets = new ArrayList<>();
 
         public String getPath() {
             return path;
@@ -188,11 +188,11 @@ public class ReleaseRules {
             this.buckets = buckets;
         }
 
-        public List<Integer> getCanaryBuckets() {
+        public List<String> getCanaryBuckets() {
             return canaryBuckets;
         }
 
-        public void setCanaryBuckets(List<Integer> canaryBuckets) {
+        public void setCanaryBuckets(List<String> canaryBuckets) {
             this.canaryBuckets = canaryBuckets == null ? new ArrayList<>() : canaryBuckets;
         }
     }

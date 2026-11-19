@@ -57,7 +57,7 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
         final String header = config.getHeader();
         final List<String> values = parseList(config.getValues());
         final int buckets = config.getBuckets() == null ? 0 : config.getBuckets();
-        final List<String> canaryBuckets = parseList(config.getCanaryBuckets());
+        final java.util.Set<Integer> canaryBuckets = parseBuckets(config.getCanaryBuckets());
         final boolean negate = Boolean.parseBoolean(config.getNegate());
 
         return exchange -> {
@@ -68,7 +68,7 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
             } else if (buckets > 0) {
                 // 用 CRC32 而不是 String.hashCode：后者对 "user-1/user-2/..." 这类规律取值分布很差，
                 // 会导致某个桶区间几乎没人命中，A/B 比例失真
-                in = v != null && canaryBuckets.contains(String.valueOf(bucketOf(v, buckets)));
+                in = v != null && canaryBuckets.contains(bucketOf(v, buckets));
             } else {
                 in = false;
             }
@@ -81,6 +81,28 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
         java.util.zip.CRC32 crc = new java.util.zip.CRC32();
         crc.update(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return (int) Math.floorMod(crc.getValue(), buckets);
+    }
+
+    /** 解析桶集合，支持 "0-49" 区间与逐个列出的混合写法 */
+    private static java.util.Set<Integer> parseBuckets(String raw) {
+        java.util.Set<Integer> out = new java.util.HashSet<>();
+        for (String s : parseList(raw)) {
+            int dash = s.indexOf('-');
+            try {
+                if (dash > 0) {
+                    int from = Integer.parseInt(s.substring(0, dash).trim());
+                    int to = Integer.parseInt(s.substring(dash + 1).trim());
+                    for (int i = from; i <= to; i++) {
+                        out.add(i);
+                    }
+                } else {
+                    out.add(Integer.parseInt(s));
+                }
+            } catch (NumberFormatException e) {
+                // 忽略非法桶号，避免一条脏配置把整个路由搞崩
+            }
+        }
+        return out;
     }
 
     private static List<String> parseList(String raw) {        List<String> out = new ArrayList<>();
