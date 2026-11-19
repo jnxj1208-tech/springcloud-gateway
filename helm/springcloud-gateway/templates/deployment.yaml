@@ -14,6 +14,8 @@ spec:
     metadata:
       labels:
         {{- include "sgw.selectorLabels" . | nindent 8 }}
+        # Alloy 用 pod 的 app 标签给日志打 index label，缺了它 Loki 里就没有 app 维度
+        app: {{ .Values.otel.serviceName | quote }}
       annotations:
         app.kubernetes.io/image-tag: {{ .Values.image.tag | quote }}
     spec:
