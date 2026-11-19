@@ -183,7 +183,10 @@ public class ReleaseRuleRouteDefinitionLocator implements RouteDefinitionLocator
     }
 
     private PredicateDefinition predicate(String name, Map<String, String> args) {
-        PredicateDefinition pd = new PredicateDefinition(name);
+        // 必须用无参构造 + setName：PredicateDefinition(String) 是按 "name=value" 短格式解析的，
+        // 直接传 "Weight" 会抛 ValidationException（must be of the form name=value）
+        PredicateDefinition pd = new PredicateDefinition();
+        pd.setName(name);
         pd.setArgs(new java.util.LinkedHashMap<>(args));
         return pd;
     }
