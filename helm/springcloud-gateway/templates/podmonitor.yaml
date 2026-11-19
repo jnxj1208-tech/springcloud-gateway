@@ -1,0 +1,18 @@
+{{- if .Values.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ include "sgw.fullname" . }}
+  labels:
+    {{- include "sgw.labels" . | nindent 4 }}
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels:
+      {{- include "sgw.selectorLabels" . | nindent 6 }}
+  podMetricsEndpoints:
+    - port: http
+      path: {{ .Values.podMonitor.path }}
+      interval: {{ .Values.podMonitor.interval }}
+      scrapeTimeout: {{ .Values.podMonitor.scrapeTimeout }}
+{{- end }}

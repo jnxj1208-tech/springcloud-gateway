@@ -1,0 +1,6 @@
+apiVersion: v2
+name: springcloud-gateway
+description: Spring Cloud Gateway 5.0 (WebFlux) + Sentinel 网关限流，含 Sentinel Dashboard
+type: application
+version: 0.1.0
+appVersion: "0.0.1"

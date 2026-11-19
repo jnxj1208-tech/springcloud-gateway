@@ -1,0 +1,84 @@
+# 网关 + Sentinel Dashboard 部署参数。镜像 tag 由 CI 产出（sha-<7位短sha>）。
+replicaCount: 2
+
+image:
+  repository: crpi-63bn132591ltkv8z.cn-hangzhou.personal.cr.aliyuncs.com/my-springcloud-demo/springcloud-gateway
+  tag: ""               # 必填：sha-xxxxxxx
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: acr-auth
+
+service:
+  type: ClusterIP
+  httpPort: 80
+  containerPort: 8080
+  # Sentinel 客户端与 dashboard 通信端口（dashboard 从该端口拉规则/指标）
+  sentinelApiPort: 8719
+
+ingress:
+  enabled: true
+  className: nginx
+  host: gateway.minikube.local
+  path: /
+  pathType: Prefix
+
+# Nacos 地址（集群内 Service）
+nacosAddr: nacos:8848
+
+# Sentinel Dashboard 地址（作为客户端上报与规则拉取的对端）
+sentinelDashboardAddr: sentinel-dashboard:8858
+
+javaOpts: >-
+  -XX:MaxRAMPercentage=75
+  -Djava.security.egd=file:/dev/./urandom
+  -Xlog:gc*:stdout:time,uptime,level,tags
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    cpu: 1000m
+    memory: 768Mi
+
+probes:
+  readiness:
+    path: /actuator/health/readiness
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    failureThreshold: 3
+  liveness:
+    path: /actuator/health/liveness
+    initialDelaySeconds: 40
+    periodSeconds: 15
+    failureThreshold: 3
+
+podMonitor:
+  enabled: true
+  interval: 15s
+  scrapeTimeout: 10s
+  path: /actuator/prometheus
+
+# Sentinel Dashboard（同 chart 部署，方便演示；生产可独立部署）
+dashboard:
+  enabled: true
+  image:
+    repository: crpi-63bn132591ltkv8z.cn-hangzhou.personal.cr.aliyuncs.com/my-springcloud-demo/sentinel-dashboard
+    tag: "1.8.9"
+    pullPolicy: IfNotPresent
+  service:
+    port: 8858
+  ingress:
+    enabled: true
+    className: nginx
+    host: sentinel.minikube.local
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+extraEnv: {}

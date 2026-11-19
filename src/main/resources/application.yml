@@ -1,0 +1,52 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: springcloud-gateway
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: public
+      config:
+        server-addr: ${NACOS_ADDR:nacos:8848}
+        namespace: public
+        file-extension: yaml
+        import-check:
+          enabled: false
+    # ⚠️ SCG 5.x 新命名空间：spring.cloud.gateway.server.webflux.routes
+    # 写成旧的 spring.cloud.gateway.routes 不会报错，但一条路由都不会加载
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: springcloud-demo-route
+              uri: lb://springcloud-demo
+              predicates:
+                - Path=/api/**
+              filters:
+                - StripPrefix=1
+  config:
+    import:
+      - optional:nacos:springcloud-gateway.yaml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: always
+  metrics:
+    tags:
+      application: springcloud-gateway
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO
+    com.alibaba.csp.sentinel: INFO
+    com.example.gateway: DEBUG

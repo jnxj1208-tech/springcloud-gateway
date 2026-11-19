@@ -1,0 +1,80 @@
+{{- if .Values.dashboard.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentinel-dashboard
+  labels:
+    app: sentinel-dashboard
+    {{- include "sgw.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: sentinel-dashboard
+  template:
+    metadata:
+      labels:
+        app: sentinel-dashboard
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      containers:
+        - name: sentinel-dashboard
+          image: "{{ .Values.dashboard.image.repository }}:{{ .Values.dashboard.image.tag }}"
+          imagePullPolicy: {{ .Values.dashboard.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.dashboard.service.port }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.dashboard.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-dashboard
+  labels:
+    app: sentinel-dashboard
+spec:
+  type: ClusterIP
+  selector:
+    app: sentinel-dashboard
+  ports:
+    - name: http
+      port: {{ .Values.dashboard.service.port }}
+      targetPort: http
+{{- if .Values.dashboard.ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sentinel-dashboard
+  labels:
+    app: sentinel-dashboard
+spec:
+  ingressClassName: {{ .Values.dashboard.ingress.className }}
+  rules:
+    - host: {{ .Values.dashboard.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sentinel-dashboard
+                port:
+                  number: {{ .Values.dashboard.service.port }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,92 @@
+name: build-and-push
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ${{ secrets.ACR_REGISTRY }}
+  NS: ${{ secrets.ACR_NAMESPACE }}
+  IMAGE_GATEWAY: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/springcloud-gateway
+  IMAGE_DASHBOARD: ${{ secrets.ACR_REGISTRY }}/${{ secrets.ACR_NAMESPACE }}/sentinel-dashboard
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Short sha
+        id: vars
+        run: echo "sha7=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Lint and render Helm chart
+        run: |
+          helm lint helm/springcloud-gateway
+          helm template springcloud-gateway helm/springcloud-gateway --set image.tag=sha-${{ steps.vars.outputs.sha7 }} > /dev/null
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B -ntp clean package
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Aliyun ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build and push gateway image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_GATEWAY }}:sha-${{ steps.vars.outputs.sha7 }}
+            ${{ env.IMAGE_GATEWAY }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push sentinel dashboard image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.dashboard
+          push: true
+          provenance: false
+          sbom: false
+          tags: |
+            ${{ env.IMAGE_DASHBOARD }}:1.8.9
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Summary
+        run: |
+          {
+            echo "### Images pushed"
+            echo ""
+            echo '```'
+            echo "${IMAGE_GATEWAY}:sha-${{ steps.vars.outputs.sha7 }}"
+            echo "${IMAGE_DASHBOARD}:1.8.9"
+            echo '```'
+            echo ""
+            echo "本地 minikube 部署："
+            echo '```'
+            echo ".\\deploy.ps1 -Tag sha-${{ steps.vars.outputs.sha7 }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
