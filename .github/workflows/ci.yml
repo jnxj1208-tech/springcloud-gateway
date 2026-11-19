@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      sha:
+        description: "要构建的 commit sha（留空则构建所填 ref 的最新提交）"
+        required: false
+        type: string
 
 env:
   REGISTRY: ${{ secrets.ACR_REGISTRY }}
@@ -19,10 +24,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 门户上「选 commit 构建」靠这里：workflow_dispatch 本身只能指定 branch/tag
+          ref: ${{ inputs.sha || github.sha }}
 
       - name: Short sha
         id: vars
-        run: echo "sha7=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "sha7=$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Lint and render Helm chart
         run: |
