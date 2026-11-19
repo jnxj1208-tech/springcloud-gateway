@@ -1,5 +1,6 @@
 package com.example.gateway.web;
 
+import org.springframework.cloud.gateway.support.ServerWebExchangeUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -7,8 +8,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
 
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,11 +32,26 @@ public class FallbackController {
         body.put("status", HttpStatus.NOT_FOUND.value());
         body.put("error", "Not Found");
         body.put("message", "no route matched; expected path prefix /api/v{n}/{domain}/...");
-        body.put("path", exchange.getRequest().getPath().value());
+        body.put("path", originalPath(exchange));
         body.put("method", exchange.getRequest().getMethod().name());
         body.put("traceId", exchange.getRequest().getHeaders().getFirst("X-Trace-Id"));
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body);
+    }
+
+    /**
+     * forward 之后 request 的 path 已经变成 /__fallback，
+     * 真正被请求的原始路径存在 gateway 的 attribute 里，取它才是对调用方有用的信息。
+     */
+    private String originalPath(ServerWebExchange exchange) {
+        List<URI> originals = exchange.getAttribute(ServerWebExchangeUtils.GATEWAY_ORIGINAL_REQUEST_URL_ATTR);
+        if (originals != null && !originals.isEmpty()) {
+            URI last = originals.get(originals.size() - 1);
+            if (last.getPath() != null && !last.getPath().isBlank()) {
+                return last.getPath();
+            }
+        }
+        return exchange.getRequest().getPath().value();
     }
 }
