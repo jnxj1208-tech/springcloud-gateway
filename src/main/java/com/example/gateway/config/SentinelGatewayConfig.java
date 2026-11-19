@@ -5,6 +5,7 @@ import com.alibaba.csp.sentinel.adapter.gateway.common.rule.GatewayFlowRule;
 import com.alibaba.csp.sentinel.adapter.gateway.common.rule.GatewayParamFlowItem;
 import com.alibaba.csp.sentinel.adapter.gateway.common.rule.GatewayRuleManager;
 import com.alibaba.csp.sentinel.adapter.gateway.sc.SentinelGatewayFilter;
+import com.alibaba.csp.sentinel.adapter.gateway.sc.callback.GatewayCallbackManager;
 import com.alibaba.csp.sentinel.adapter.gateway.sc.exception.SentinelGatewayBlockExceptionHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,11 +15,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerCodecConfigurer;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.server.ServerResponse;
 import org.springframework.web.reactive.result.view.ViewResolver;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -89,6 +95,21 @@ public class SentinelGatewayConfig {
 
             GatewayRuleManager.loadRules(rules);
             log.info("Sentinel gateway rules loaded: {}", rules.size());
+
+            // 必须自定义 429 响应：Sentinel 1.8.9 默认的 DefaultBlockRequestHandler
+            // 调用了 Spring 6 的 MediaType.sortBySpecificityAndQuality()，
+            // Spring Framework 7（Boot 4）已移除该方法，触发限流时会抛 NoSuchMethodError 变成 502
+            GatewayCallbackManager.setBlockHandler((exchange, t) -> {
+                String tenant = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
+                log.warn("rate limited: tenant={}, exception={}", tenant, t.getClass().getSimpleName());
+                return ServerResponse.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(BodyInserters.fromValue(Map.of(
+                                "code", 429,
+                                "message", "rate limited by sentinel",
+                                "tenant", tenant == null ? "anonymous" : tenant,
+                                "rule", t.getClass().getSimpleName())));
+            });
         }
     }
 }
