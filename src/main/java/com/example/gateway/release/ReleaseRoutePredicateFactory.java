@@ -66,7 +66,9 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
             if (!values.isEmpty()) {
                 in = v != null && values.contains(v);
             } else if (buckets > 0) {
-                in = v != null && canaryBuckets.contains(String.valueOf(Math.floorMod(v.hashCode(), buckets)));
+                // 用 CRC32 而不是 String.hashCode：后者对 "user-1/user-2/..." 这类规律取值分布很差，
+                // 会导致某个桶区间几乎没人命中，A/B 比例失真
+                in = v != null && canaryBuckets.contains(String.valueOf(bucketOf(v, buckets)));
             } else {
                 in = false;
             }
@@ -74,8 +76,14 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
         };
     }
 
-    private static List<String> parseList(String raw) {
-        List<String> out = new ArrayList<>();
+    /** 一致性哈希分桶：同一取值永远落同一桶，且分布均匀 */
+    private static int bucketOf(String value, int buckets) {
+        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+        crc.update(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return (int) Math.floorMod(crc.getValue(), buckets);
+    }
+
+    private static List<String> parseList(String raw) {        List<String> out = new ArrayList<>();
         if (raw == null || raw.isBlank()) {
             return out;
         }
