@@ -47,3 +47,10 @@ logging:
     org.springframework.cloud.gateway: INFO
     com.alibaba.csp.sentinel: INFO
     com.example.gateway: DEBUG
+
+gateway:
+  internal-error:
+    # 日志目录探活路径；留空时回退到 -Dcsp.sentinel.log.dir，再回退 /tmp/csp-logs
+    log-probe-dir: ${GATEWAY_INTERNAL_ERROR_LOG_PROBE_DIR:}
+    probe-interval-seconds: 60
+    failure-cooldown-seconds: 300
