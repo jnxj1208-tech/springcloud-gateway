@@ -24,7 +24,7 @@ RUN chown -R app:app /app
 USER app
 
 EXPOSE 8080 8719
-ENV JAVA_OPTS="-javaagent:/app/otel-javaagent.jar -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom"
+ENV JAVA_OPTS="-javaagent:/app/otel-javaagent.jar -XX:MaxRAMPercentage=75 -Djava.security.egd=file:/dev/./urandom -Dcsp.sentinel.log.dir=/tmp/csp-logs"
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
   CMD wget -q -O /dev/null http://127.0.0.1:8080/actuator/health || exit 1

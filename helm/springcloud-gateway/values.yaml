@@ -40,6 +40,7 @@ javaOpts: >-
   -XX:MaxRAMPercentage=75
   -Djava.security.egd=file:/dev/./urandom
   -Xlog:gc*:stdout:time,uptime,level,tags
+  -Dcsp.sentinel.log.dir=/tmp/csp-logs
 
 # OpenTelemetry：网关在链路最前端，接上 agent 后入口 → 网关 → 应用才是同一条 trace
 otel:
