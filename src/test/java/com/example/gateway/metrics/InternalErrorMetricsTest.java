@@ -122,6 +122,22 @@ class InternalErrorMetricsTest {
     }
 
     @Test
+    void baselineCountersAreRegisteredAtStartup() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        InternalErrorMetrics metrics = newMetrics(registry, 300, dir -> true);
+        metrics.initialize();
+        try {
+            Counter internal = registry.find("gateway.internal.error")
+                    .tag("source", InternalErrorMetrics.SOURCE_SENTINEL_LOG_DIR).counter();
+            Counter uncaught = registry.find("uncaught.exception").tag("thread", "unknown").counter();
+            assertEquals(0.0, internal.count(), 1e-9, "内部异常计数器基线序列应在启动时注册");
+            assertEquals(0.0, uncaught.count(), 1e-9, "未捕获异常计数器基线序列应在启动时注册");
+        } finally {
+            metrics.shutdown();
+        }
+    }
+
+    @Test
     void failingPreviousHandlerDoesNotSwallowMetric() {
         SimpleMeterRegistry registry = new SimpleMeterRegistry();
         InternalErrorMetrics metrics = newMetrics(registry, 300, dir -> true);

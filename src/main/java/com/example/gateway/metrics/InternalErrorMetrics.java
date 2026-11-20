@@ -81,6 +81,9 @@ public class InternalErrorMetrics {
     @PostConstruct
     void initialize() {
         installUncaughtExceptionHandler();
+        // 预注册零值基线，保证健康状态下两个指标序列也能被 Prometheus 抓到（计数器默认懒注册）
+        internalErrorCounter(SOURCE_SENTINEL_LOG_DIR);
+        uncaughtCounter("unknown");
         executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread t = new Thread(runnable, "gateway-internal-error-probe");
             t.setDaemon(true);
@@ -133,11 +136,14 @@ public class InternalErrorMetrics {
             return;
         }
         lastFailureAtMillis.put(source, now);
-        Counter.builder("gateway.internal.error")
+        internalErrorCounter(source).increment();
+    }
+
+    private Counter internalErrorCounter(String source) {
+        return Counter.builder("gateway.internal.error")
                 .description("Gateway internal/subsystem failure counter")
                 .tags("source", source)
-                .register(registry)
-                .increment();
+                .register(registry);
     }
 
     private void installUncaughtExceptionHandler() {
@@ -168,12 +174,15 @@ public class InternalErrorMetrics {
 
     void recordUncaught(Thread thread, Throwable ex) {
         String threadTag = normalizeThreadName(thread == null ? null : thread.getName());
-        Counter.builder("uncaught.exception")
+        uncaughtCounter(threadTag).increment();
+        log.warn("未捕获异常 thread={}", threadTag, ex);
+    }
+
+    private Counter uncaughtCounter(String threadTag) {
+        return Counter.builder("uncaught.exception")
                 .description("Uncaught exceptions observed via the JVM default uncaught exception handler")
                 .tags("thread", threadTag)
-                .register(registry)
-                .increment();
-        log.warn("未捕获异常 thread={}", threadTag, ex);
+                .register(registry);
     }
 
     /**
