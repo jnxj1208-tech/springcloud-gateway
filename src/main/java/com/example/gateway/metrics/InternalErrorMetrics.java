@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,6 +58,7 @@ public class InternalErrorMetrics {
         boolean isWritable(Path dir) throws Exception;
     }
 
+    @Autowired
     public InternalErrorMetrics(MeterRegistry registry,
                                 @Value("${gateway.internal-error.log-probe-dir:}") String configuredProbeDir,
                                 @Value("${gateway.internal-error.probe-interval-seconds:60}") long probeIntervalSeconds,
