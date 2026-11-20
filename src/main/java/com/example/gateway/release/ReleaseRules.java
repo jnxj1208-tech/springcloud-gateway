@@ -53,6 +53,8 @@ public class ReleaseRules {
         private String mode = "none";
         private Variant stable;
         private Variant canary;
+        /** v2 格式：N 路目标组，key 为组标签（v1/v2/v3），Map 顺序即权重累加顺序 */
+        private Map<String, Variant> targets = new LinkedHashMap<>();
         private List<ReleaseRoute> routes = new ArrayList<>();
 
         public String getMode() {
@@ -77,6 +79,14 @@ public class ReleaseRules {
 
         public void setCanary(Variant canary) {
             this.canary = canary;
+        }
+
+        public Map<String, Variant> getTargets() {
+            return targets;
+        }
+
+        public void setTargets(Map<String, Variant> targets) {
+            this.targets = targets == null ? new LinkedHashMap<>() : targets;
         }
 
         public List<ReleaseRoute> getRoutes() {
@@ -205,6 +215,8 @@ public class ReleaseRules {
         private Integer stable = 100;
         /** 金丝雀权重（0-100） */
         private Integer canary = 0;
+        /** v2 格式：N 路目标组权重，key 与 ServiceRule.targets 对齐，Map 顺序即累加顺序 */
+        private Map<String, Integer> weights = new LinkedHashMap<>();
 
         public String getType() {
             return type;
@@ -228,6 +240,14 @@ public class ReleaseRules {
 
         public void setCanary(Integer canary) {
             this.canary = canary;
+        }
+
+        public Map<String, Integer> getWeights() {
+            return weights;
+        }
+
+        public void setWeights(Map<String, Integer> weights) {
+            this.weights = weights == null ? new LinkedHashMap<>() : weights;
         }
     }
 }

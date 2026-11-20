@@ -39,10 +39,13 @@ public class ReleaseRuleRouteDefinitionLocator implements RouteDefinitionLocator
 
     @Override
     public Flux<RouteDefinition> getRouteDefinitions() {
-        return Flux.fromIterable(expand(loader.current()));
+        return Flux.fromIterable(expandRules(loader.current()));
     }
 
-    private List<RouteDefinition> expand(ReleaseRules rules) {
+    /**
+     * 规则展开为标准路由定义。抽成 package-private 便于不依赖 Nacos 的单测直接调用。
+     */
+    List<RouteDefinition> expandRules(ReleaseRules rules) {
         List<RouteDefinition> out = new ArrayList<>();
         if (rules == null || rules.isEmpty()) {
             log.debug("发布规则为空，使用 profile 中的路由");
@@ -66,7 +69,7 @@ public class ReleaseRuleRouteDefinitionLocator implements RouteDefinitionLocator
                 ReleaseRules.Split split = route.getSplit();
                 String type = split == null || split.getType() == null ? "weight" : split.getType();
                 switch (type) {
-                    case "weight" -> expandWeight(out, key, index, path, stableService, canaryService, split);
+                    case "weight" -> expandWeight(out, key, index, path, stableService, canaryService, split, svc);
                     case "header" -> expandConditional(out, key, index, path, stableService, canaryService,
                             route.getMatch(), false);
                     case "fixed-group" -> expandConditional(out, key, index, path, stableService, canaryService,
@@ -89,9 +92,14 @@ public class ReleaseRuleRouteDefinitionLocator implements RouteDefinitionLocator
         return variant.getService();
     }
 
-    /** 按权重分流：生成 stable / canary 两条路由，共用 ReleaseRoute 谓词的同一随机数 */
+    /** 按权重分流：有 targets 走 N 路展开；否则生成 stable / canary 两条路由（旧格式，行为不变） */
     private void expandWeight(List<RouteDefinition> out, String key, int index, String path,
-                              String stableService, String canaryService, ReleaseRules.Split split) {
+                              String stableService, String canaryService, ReleaseRules.Split split,
+                              ReleaseRules.ServiceRule svc) {
+        if (svc.getTargets() != null && !svc.getTargets().isEmpty()) {
+            expandTargets(out, key, index, path, svc, split);
+            return;
+        }
         int canaryWeight = split.getCanary() == null ? 0 : split.getCanary();
         if (canaryWeight > 0 && canaryService == null) {
             log.warn("规则声明了 canary 权重但未配置 canary.service，金丝雀路由被忽略: service={}", key);
@@ -115,6 +123,45 @@ public class ReleaseRuleRouteDefinitionLocator implements RouteDefinitionLocator
                     predicates(path, canaryPredicate)));
         }
         log.info("权重分流: service={}, stable={}%, canary={}%", key, 100 - canaryWeight, canaryWeight);
+    }
+
+    /** v2 格式：按 targets 声明顺序循环生成 N 条路由，跳过 weight<=0；合计不为 100 只 warn */
+    private void expandTargets(List<RouteDefinition> out, String key, int index, String path,
+                               ReleaseRules.ServiceRule svc, ReleaseRules.Split split) {
+        Map<String, ReleaseRules.Variant> targets = svc.getTargets();
+        Map<String, Integer> weights = split.getWeights() == null ? Map.of() : split.getWeights();
+
+        List<String> orderedKeys = new ArrayList<>(targets.keySet());
+        StringBuilder ladder = new StringBuilder();
+        int sum = 0;
+        for (String t : orderedKeys) {
+            int w = weights.getOrDefault(t, 0);
+            sum += w;
+            if (ladder.length() > 0) {
+                ladder.append(',');
+            }
+            ladder.append(t).append(':').append(w);
+        }
+        if (sum != 100) {
+            log.warn("权重合计={}%，不等于 100，照常展开: service={}", sum, key);
+        }
+        String ladderStr = ladder.toString();
+        String group = key + "-w" + index;
+
+        for (String t : orderedKeys) {
+            int w = weights.getOrDefault(t, 0);
+            if (w <= 0) {
+                continue;
+            }
+            String service = resolveService(targets.get(t), t);
+            PredicateDefinition targetPredicate = predicate("ReleaseRoute", Map.of(
+                    "role", t,
+                    "group", group,
+                    "targets", ladderStr));
+            out.add(route(key + "-" + t + "-" + index, service, order(RULE_ORDER),
+                    predicates(path, targetPredicate)));
+        }
+        log.info("权重分流(N路): service={}, targets={}, 合计={}%", key, ladderStr, sum);
     }
 
     /** 按请求头定向（灰度）或按哈希分桶（A/B）：生成互斥的两条路由 */

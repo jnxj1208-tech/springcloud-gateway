@@ -37,12 +37,33 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
     @Override
     public Predicate<ServerWebExchange> apply(Config config) {
         final String role = config.getRole();
-        // 权重模式：同一请求只掷一次骰子，存在 exchange attributes 里，两条路由共享
+        // 权重模式：同一请求只掷一次骰子，存在 exchange attributes 里，同组路由共享
         if (role != null && !role.isBlank()) {
             final String group = config.getGroup() == null ? "default" : config.getGroup();
+            final String attrKey = "release.bucket." + group;
+            final boolean multiTarget = config.getTargets() != null && !config.getTargets().isBlank();
+            if (multiTarget) {
+                // v2 格式：N 路 targets+weights，按声明顺序累加区间判定
+                final List<Segment> ladder = parseLadder(config.getTargets());
+                return exchange -> {
+                    Integer r = (Integer) exchange.getAttributes().get(attrKey);
+                    if (r == null) {
+                        r = java.util.concurrent.ThreadLocalRandom.current().nextInt(100) + 1; // 1..100
+                        exchange.getAttributes().put(attrKey, r);
+                    }
+                    int prev = 0;
+                    for (Segment seg : ladder) {
+                        int upper = prev + seg.weight;
+                        if (role.equals(seg.key) && r > prev && r <= upper) {
+                            return true;
+                        }
+                        prev = upper;
+                    }
+                    return false;
+                };
+            }
             final int stableWeight = config.getStableWeight() == null ? 100 : config.getStableWeight();
             final boolean canaryRole = "canary".equalsIgnoreCase(role);
-            final String attrKey = "release.bucket." + group;
             return exchange -> {
                 Integer r = (Integer) exchange.getAttributes().get(attrKey);
                 if (r == null) {
@@ -76,9 +97,33 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
         };
     }
 
+    /** 解析 "v1:70,v2:20,v3:10" 梯子串，保持声明顺序；非法项按 0 权重处理 */
+    private static List<Segment> parseLadder(String raw) {
+        List<Segment> out = new ArrayList<>();
+        for (String s : parseList(raw)) {
+            int colon = s.indexOf(':');
+            String key = colon < 0 ? s : s.substring(0, colon).trim();
+            int weight = 0;
+            if (colon > 0) {
+                try {
+                    weight = Integer.parseInt(s.substring(colon + 1).trim());
+                } catch (NumberFormatException e) {
+                    weight = 0;
+                }
+            }
+            if (!key.isEmpty()) {
+                out.add(new Segment(key, weight));
+            }
+        }
+        return out;
+    }
+
+    /** 梯子中的一路目标组：标签 + 权重 */
+    private record Segment(String key, int weight) {
+    }
+
     /** 一致性哈希分桶：同一取值永远落同一桶，且分布均匀 */
-    private static int bucketOf(String value, int buckets) {
-        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+    private static int bucketOf(String value, int buckets) {        java.util.zip.CRC32 crc = new java.util.zip.CRC32();
         crc.update(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return (int) Math.floorMod(crc.getValue(), buckets);
     }
@@ -136,6 +181,8 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
         private String group;
         /** 权重模式：stable 版本百分比（1-100） */
         private Integer stableWeight;
+        /** v2 权重模式：N 路梯子串，形如 "v1:70,v2:20,v3:10"；为空时走 stable/canary 二分分支 */
+        private String targets;
 
         public String getRole() {
             return role;
@@ -159,6 +206,14 @@ public class ReleaseRoutePredicateFactory extends AbstractRoutePredicateFactory<
 
         public void setStableWeight(Integer stableWeight) {
             this.stableWeight = stableWeight;
+        }
+
+        public String getTargets() {
+            return targets;
+        }
+
+        public void setTargets(String targets) {
+            this.targets = targets;
         }
 
         public String getHeader() {
