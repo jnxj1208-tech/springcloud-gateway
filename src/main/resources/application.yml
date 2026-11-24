@@ -49,6 +49,19 @@ logging:
     com.example.gateway: DEBUG
 
 gateway:
+  auth:
+    # 生产必须 true：false 时网关不验签，下游租户上下文会退化回"客户端自报"
+    enabled: ${GATEWAY_AUTH_ENABLED:true}
+    # 免验签路径（Ant 风格）。auth 下的都是临时令牌流程，选租户后才换出正式 token
+    whitelist:
+      - /api/v1/identity/auth/**
+      - /actuator/**
+      - /__fallback
+      - /api/v1/demo/**
+    jwt:
+      # 与 identity-service 共用 K8s Secret identity-secret/jwt-secret
+      secret: ${JWT_SECRET:}
+      issuer: ${JWT_ISSUER:photo-saas-identity}
   internal-error:
     # 日志目录探活路径；留空时回退到 -Dcsp.sentinel.log.dir，再回退 /tmp/csp-logs
     log-probe-dir: ${GATEWAY_INTERNAL_ERROR_LOG_PROBE_DIR:}

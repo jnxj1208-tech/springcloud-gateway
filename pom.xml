@@ -23,6 +23,8 @@
     <spring-cloud-alibaba.version>2025.1.0.0</spring-cloud-alibaba.version>
     <!-- 与 SCA 2025.1.0.0 声明的版本对齐；1.8.10 的 gateway adapter 依赖未发布的 1.8.10 common 包 -->
     <sentinel.version>1.8.9</sentinel.version>
+    <!-- 与 identity-service 同一个 jjwt 版本，保证 token 解析语义完全一致 -->
+    <jjwt.version>0.12.6</jjwt.version>
   </properties>
 
   <dependencyManagement>
@@ -69,6 +71,24 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <!-- JWT 验签：与 identity-service 完全同库同版本，避免算法/claim 语义漂移 -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-api</artifactId>
+      <version>${jjwt.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <version>${jjwt.version}</version>
+      <scope>runtime</scope>
     </dependency>
     <dependency>
       <groupId>io.micrometer</groupId>

@@ -35,6 +35,16 @@ demoServiceUri: "http://springcloud-demo:80"
 # Sentinel Dashboard 地址（作为客户端上报与规则拉取的对端）
 sentinelDashboardAddr: sentinel-dashboard:8858
 
+# 网关鉴权（验 accessToken 后把 tenantId/accountId/roles 注入下游头）
+auth:
+  enabled: true
+  # JWT 验签密钥与 identity-service 共用同一个 Secret，绝不写进 values.yaml
+  jwt:
+    secretRef:
+      name: identity-secret
+      key: jwt-secret
+    issuer: photo-saas-identity
+
 javaOpts: >-
   -javaagent:/app/otel-javaagent.jar
   -XX:MaxRAMPercentage=75

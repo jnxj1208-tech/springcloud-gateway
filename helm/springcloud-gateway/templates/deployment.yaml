@@ -47,6 +47,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            # 网关鉴权：密钥来自 identity 的 Secret（同一个值才能验它签的 token）
+            - name: GATEWAY_AUTH_ENABLED
+              value: {{ .Values.auth.enabled | quote }}
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.auth.jwt.secretRef.name }}
+                  key: {{ .Values.auth.jwt.secretRef.key }}
+            - name: JWT_ISSUER
+              value: {{ .Values.auth.jwt.issuer | quote }}
             - name: JAVA_OPTS
               value: {{ .Values.javaOpts | quote }}
             - name: OTEL_SERVICE_NAME
