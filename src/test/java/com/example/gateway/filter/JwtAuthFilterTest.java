@@ -45,7 +45,7 @@ class JwtAuthFilterTest {
         props.getJwt().setSecret(SECRET);
         props.getJwt().setIssuer(ISSUER);
         props.setWhitelist(List.of("/api/v1/identity/auth/**", "/actuator/**"));
-        filter = new JwtAuthFilter(props, objectMapper);
+        filter = new JwtAuthFilter(props);
     }
 
     @Test

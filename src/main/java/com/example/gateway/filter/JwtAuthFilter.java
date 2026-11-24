@@ -77,13 +77,17 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
     private static final Set<String> UNTRUSTED_HEADERS = Set.of(TENANT_HEADER, ACCOUNT_HEADER, ROLE_HEADER);
 
     private final GatewayAuthProperties props;
-    private final ObjectMapper objectMapper;
+    /**
+     * 自带 Jackson 2 实例：Spring Boot 4 的自动配置默认提供的是 Jackson 3 的 ObjectMapper，
+     * com.fasterxml 的 ObjectMapper 不再是可注入的 bean（注入会直接启动失败）。
+     * 这里只用来序列化一个极小的错误体，自己 new 一个即可。
+     */
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final SecretKey key;
     private final List<PathPattern> whitelist;
 
-    public JwtAuthFilter(GatewayAuthProperties props, ObjectMapper objectMapper) {
+    public JwtAuthFilter(GatewayAuthProperties props) {
         this.props = props;
-        this.objectMapper = objectMapper;
         this.whitelist = props.getWhitelist() == null
                 ? List.of()
                 : props.getWhitelist().stream().map(PATH_PARSER::parse).toList();
